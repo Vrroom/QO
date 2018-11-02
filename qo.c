@@ -7,7 +7,7 @@ struct worker_data{
 	int n_workers;
 };
 
-struct worker_data items[4];
+struct worker_data items[16];
 
 // ASSUME Queries are indexed from 0 to n-1
 int less (gconstpointer a, gconstpointer b){
@@ -43,7 +43,7 @@ GPtrArray * constrained_power_set(GPtrArray * constr, gint q1, gint q2){
 		GArray * ci = g_ptr_array_index(constr, i);
 		if(g_array_index(ci, gint, 1) == q1)
 			include_q1 = FALSE;
-		else
+		else if(g_array_index(ci, gint, 1) == q2)
 			include_q2 = FALSE;
 	}
 	if(include_q1){
@@ -56,17 +56,15 @@ GPtrArray * constrained_power_set(GPtrArray * constr, gint q1, gint q2){
 		g_array_append_val(arr, q2);
 		g_ptr_array_add(cps, arr);
 	}
-	if(include_q1 && include_q2){
-		GArray * arr = g_array_new(FALSE, FALSE, sizeof(gint));
-		g_array_append_val(arr, q1);
-		g_array_append_val(arr, q2);
-		g_ptr_array_add(cps, arr);
-	}
+	GArray * arr = g_array_new(FALSE, FALSE, sizeof(gint));
+	g_array_append_val(arr, q1);
+	g_array_append_val(arr, q2);
+	g_ptr_array_add(cps, arr);
 	return cps;
 }
 
 // The arguments aren't modified here also
-GPtrArray * part_constraints(GArray * rels, int part_id,int n_workers){
+GPtrArray * part_constraints(GArray * rels, int part_id, int n_workers){
 	GPtrArray * pc = g_ptr_array_new_with_free_func(delete_array);
 	for(gint i = 0; (1 << i) < n_workers; i++){
 		gint select = part_id & (1 << i);
@@ -284,7 +282,7 @@ GArray * set_best(GArray * a, GArray * b){
 	for(int i = 0; i < a->len; i++){
 		int ai = g_array_index(a, gint, i);
 		int bi = g_array_index(b, gint, i);
-		if(ai > bi){
+		if(ai < bi){
 			break;
 		}else if(bi < ai){
 			best = b;
@@ -297,17 +295,16 @@ GArray * set_best(GArray * a, GArray * b){
 }
 
 void master(){
-	int n_workers = 1;
-	//int r[16] = {0,2,3,1,4,5,9,8,7,10,11,12,15,14,13,6};
-	int r[4] = {0,3,2,1};
+	int n_workers = 4;
+	int r[16] = {0,2,3,1,4,5,9,8,7,10,11,12,15,14,13,6};
 	GArray * rels = g_array_new(FALSE, FALSE, sizeof(gint));
-	rels = g_array_append_vals(rels, &r, 4);
+	rels = g_array_append_vals(rels, &r, 16);
 	gchar * name = "";
 	GPtrArray * threads = g_ptr_array_new();
 	for(int i = 0; i < n_workers; i++){
 		items[i].rels = rels;
 		items[i].n_workers = n_workers;
-		items[i].part_id = i + 1;
+		items[i].part_id = i;
 		GThread * t = g_thread_new(name, worker, &items[i]);
 		g_ptr_array_add(threads, t);
 	}
